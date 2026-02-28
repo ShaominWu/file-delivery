@@ -1,0 +1,95 @@
+{
+  "clients": {
+    "MM": {
+      "email": "bert@mmstructural.ca",
+      "cc": "kyle@mmstructural.ca",
+      "contact": "Bert",
+      "name": "M&M Structural",
+      "folder": "MM"
+    },
+    "MIG": {
+      "email": "SERGE@MIGSTEEL.COM",
+      "contact": "Serge",
+      "name": "MIG Steel",
+      "folder": "MIG"
+    },
+    "RITCHIE": {
+      "email": "sdionne@ritchieswelding.ca",
+      "contact": "Serge",
+      "name": "Ritchie Welding",
+      "folder": "Ritchie"
+    },
+    "simcon": {
+      "email": "dscott.simcon@live.ca",
+      "contact": "David",
+      "name": "Simcon",
+      "folder": "Simcon"
+    },
+    "olsonfab": {
+      "email": "cglover@olsonfab.com",
+      "cc": "cmatheson@olsonfab.com",
+      "contact": "Chris",
+      "name": "Olson Fabrication",
+      "folder": "Olsonfab"
+    },
+    "carleton": {
+      "email": "greg@carletoniron.com",
+      "contact": "Greg",
+      "name": "Carleton Iron",
+      "folder": "Carleton"
+    },
+    "Shao": {
+      "email": "wushaomin69@163.com",
+      "contact": "Shaomin",
+      "name": "Shaomin Wu",
+      "folder": "Shao",
+      "note": "自用备份"
+    },
+    "WW": {
+      "email": "wwstrusteelengineering@gmail.com",
+      "contact": "WangWei",
+      "name": "WW",
+      "folder": "WW"
+    },
+    "KILMARNOCK": {
+      "email": "ssharpe@kilmarnock.ca",
+      "contact": "Shaun",
+      "name": "Kilmarnock",
+      "folder": "KILMARNOCK"
+    },
+    "LEMIRE": {
+      "email": "bob@lemire.on.ca",
+      "contact": "Bob",
+      "name": "Lemire",
+      "folder": "Lemire"
+    },
+    "ALEXANDER": {
+      "email": "alex@egesolutions.com",
+      "contact": "Alex",
+      "name": "AlexEG",
+      "folder": "Alexander"
+    },
+    "JT": {
+      "email": "jt@morissetconstruction.com",
+      "contact": "JT",
+      "name": "JT",
+      "folder": "JT",
+      "signature": "Western Valley Design"
+    },
+    "LEE": {
+      "email": "leodetailing@163.com",
+      "contact": "Leo",
+      "name": "Lee Detailing",
+      "folder": "LEE"
+    }
+  },
+  "settings": {
+    "local_sync_folder": "/mnt/c/绿联云同步",
+    "google_drive_folder": "客户文件交付",
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 465,
+    "sender_email": "wushaomin7777@gmail.com",
+    "link_expiry_days": 7,
+    "auto_cleanup_after_download": true
+  }
+}
