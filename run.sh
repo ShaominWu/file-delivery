@@ -1,8 +1,14 @@
 #!/bin/bash
 # File Delivery Skill - 快速入口
 
-SKILL_DIR="$(dirname "$0")"
-PYTHON="python3"
+SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# 使用虚拟环境的 Python
+if [ -f "$SKILL_DIR/venv/bin/python3" ]; then
+    PYTHON="$SKILL_DIR/venv/bin/python3"
+else
+    PYTHON="python3"
+fi
 
 echo "🚀 Ferrum File Delivery System"
 echo "=============================="

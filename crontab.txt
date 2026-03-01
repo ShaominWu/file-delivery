@@ -1,0 +1,12 @@
+# Office Automa - 小豆豆定时任务 (加拿大东部时间)
+# 小豆豆每天早上 8:00 和 10:00 扫描并发送文件
+# 小豆豆每天凌晨 1:00 清理云端旧文件
+
+# 每天上午 8 点小豆豆上班
+0 8 * * * cd /Users/bear/.openclaw/workspace/file-delivery && /Users/bear/.openclaw/workspace/file-delivery/xiaodoudou.sh --run >> /Users/bear/.openclaw/workspace/file-delivery/logs/delivery-$(date +\%Y\%m\%d)-0800.log 2>&1
+
+# 每天上午 10 点小豆豆再次检查
+0 10 * * * cd /Users/bear/.openclaw/workspace/file-delivery && /Users/bear/.openclaw/workspace/file-delivery/xiaodoudou.sh --run >> /Users/bear/.openclaw/workspace/file-delivery/logs/delivery-$(date +\%Y\%m\%d)-1000.log 2>&1
+
+# 每天凌晨 1 点小豆豆清理云端（趁大家睡觉）
+0 1 * * * cd /Users/bear/.openclaw/workspace/file-delivery && /Users/bear/.openclaw/workspace/file-delivery/xiaodoudou.sh --cleanup >> /Users/bear/.openclaw/workspace/file-delivery/logs/cleanup-$(date +\%Y\%m\%d).log 2>&1

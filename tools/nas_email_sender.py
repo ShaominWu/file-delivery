@@ -20,7 +20,7 @@ SENDER_EMAIL = "wushaomin7777@gmail.com"
 SENDER_PASSWORD = os.environ.get("GMAIL_PASSWORD", "dolrcqvngwtvwsao")  # Gmail应用专用密码
 
 # 绿联云同步文件夹路径
-NAS_FOLDER = "/mnt/c/绿联云同步"
+NAS_FOLDER = "/Users/bear/Shared/绿联云同步"
 
 # Gmail 附件限制 (MB)
 GMAIL_SIZE_LIMIT_MB = 20
@@ -256,6 +256,9 @@ def auto_send_by_company_folder(folder_path: str, move_sent: bool = True) -> str
             dirs[:] = [d for d in dirs if d != "已发送"]
             
             for filename in files:
+                # 跳过 macOS 系统文件
+                if filename.startswith('.') or filename == '.DS_Store':
+                    continue
                 file_path = os.path.join(root, filename)
                 files_to_send.append((filename, file_path))
         

@@ -84,7 +84,7 @@
     }
   },
   "settings": {
-    "local_sync_folder": "/mnt/c/绿联云同步",
+    "local_sync_folder": "/Users/bear/Shared/绿联云同步",
     "google_drive_folder": "客户文件交付",
     "smtp_server": "smtp.gmail.com",
     "smtp_port": 465,

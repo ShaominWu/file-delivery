@@ -27,9 +27,14 @@ def get_credentials():
     """获取或创建 Google Drive 授权凭证"""
     creds = None
     
+    # 获取脚本所在目录（tools/）
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    token_path = os.path.join(script_dir, 'token.pickle')
+    secrets_path = os.path.join(script_dir, 'client_secrets.json')
+    
     # 检查是否已有 token
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
+    if os.path.exists(token_path):
+        with open(token_path, 'rb') as token:
             creds = pickle.load(token)
     
     # 如果没有凭证或已过期，重新授权
@@ -38,17 +43,17 @@ def get_credentials():
             creds.refresh(Request())
         else:
             # 需要 client_secrets.json 文件
-            if not os.path.exists('client_secrets.json'):
-                print("❌ 错误：找不到 client_secrets.json 文件")
+            if not os.path.exists(secrets_path):
+                print(f"❌ 错误：找不到 {secrets_path}")
                 print("请从 Google Cloud Console 下载 OAuth 2.0 凭证并保存为 client_secrets.json")
                 return None
             
             flow = InstalledAppFlow.from_client_secrets_file(
-                'client_secrets.json', SCOPES)
+                secrets_path, SCOPES)
             creds = flow.run_local_server(port=0)
         
         # 保存凭证
-        with open('token.pickle', 'wb') as token:
+        with open(token_path, 'wb') as token:
             pickle.dump(creds, token)
     
     return creds
@@ -281,6 +286,9 @@ if __name__ == "__main__":
         for root, dirs, files in os.walk(client_folder):
             dirs[:] = [d for d in dirs if d != "已发送"]  # 跳过已发送
             for filename in files:
+                # 跳过 macOS 系统文件
+                if filename.startswith('.') or filename == '.DS_Store':
+                    continue
                 file_path = os.path.join(root, filename)
                 files_to_process.append((filename, file_path))
         
