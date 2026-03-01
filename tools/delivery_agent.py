@@ -177,6 +177,39 @@ def process_client_files(client_name, local_folder, service=None):
     
     return results
 
+def extract_project_name(filename):
+    """从文件名中提取项目名称（去掉数字和无意义词，保留有意义的词）"""
+    import re
+    
+    # 无意义的短词列表（需要过滤掉的）
+    MEANINGLESS_WORDS = {
+        'a', 'an', 'the', 'p', 'h', 'x', 'v', 'px', 'hp', 'hd', 'sd', 
+        'mp', 'kb', 'mb', 'gb', 'and', 'or', 'of', 'in', 'on', 'at',
+        'to', 'for', 'with', 'by', 'from', 'up', 'out', 'new', 'old'
+    }
+    
+    # 去掉文件扩展名
+    name_without_ext = os.path.splitext(filename)[0]
+    
+    # 提取所有字母（包括空格）
+    letters_only = re.sub(r'[^a-zA-Z\s]', '', name_without_ext)
+    
+    # 分割成单词
+    words = letters_only.split()
+    
+    # 过滤掉无意义的短词（2个字母以下或无意义词列表中的）
+    meaningful_words = []
+    for word in words:
+        word_lower = word.lower()
+        # 保留3个字母以上的词，或者不在无意义列表中的2字母词
+        if len(word) > 2 or (len(word) == 2 and word_lower not in MEANINGLESS_WORDS):
+            meaningful_words.append(word)
+    
+    # 连接成字符串（无空格）
+    project_name = ''.join(meaningful_words)
+    
+    return project_name if project_name else "Project"
+
 def send_client_email_with_link(client_email, company_name, share_links, ai_body=None, contact_name=None, cc_email=None):
     """发送包含 Google Drive 链接的邮件"""
     import smtplib
@@ -189,12 +222,18 @@ def send_client_email_with_link(client_email, company_name, share_links, ai_body
     SENDER_EMAIL = "wushaomin7777@gmail.com"
     SENDER_PASSWORD = "dolrcqvngwtvwsao"  # Gmail应用专用密码
     
+    # 从第一个文件名提取项目名称（去掉数字）
+    if share_links and len(share_links) > 0:
+        project_name = extract_project_name(share_links[0]['filename'])
+    else:
+        project_name = company_name
+    
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = client_email
     if cc_email:
         msg['Cc'] = cc_email
-    msg['Subject'] = f"[Project Delivery] {company_name} - Download Your Files"
+    msg['Subject'] = f"[Project Delivery] {project_name} - Download Your Files"
     
     # 使用人名作为称呼，如果没有则使用公司名
     greeting_name = contact_name if contact_name else company_name
@@ -204,7 +243,7 @@ def send_client_email_with_link(client_email, company_name, share_links, ai_body
     else:
         body = f"""Hey {greeting_name},
 
-Your project files are ready for download.
+Your project files for {project_name} are ready for download.
 
 Please click the link(s) below to download your files:
 """

@@ -96,18 +96,58 @@ def upload_to_google_drive(file_path: str, filename: str) -> str:
         print(f"Google Drive 上传失败: {e}")
         return None
 
+def extract_project_name(filename):
+    """从文件名中提取项目名称（去掉数字和无意义词，保留有意义的词）"""
+    import re
+    
+    # 无意义的短词列表（需要过滤掉的）
+    MEANINGLESS_WORDS = {
+        'a', 'an', 'the', 'p', 'h', 'x', 'v', 'px', 'hp', 'hd', 'sd', 
+        'mp', 'kb', 'mb', 'gb', 'and', 'or', 'of', 'in', 'on', 'at',
+        'to', 'for', 'with', 'by', 'from', 'up', 'out', 'new', 'old'
+    }
+    
+    # 去掉文件扩展名
+    name_without_ext = os.path.splitext(filename)[0]
+    
+    # 提取所有字母（包括空格）
+    letters_only = re.sub(r'[^a-zA-Z\s]', '', name_without_ext)
+    
+    # 分割成单词
+    words = letters_only.split()
+    
+    # 过滤掉无意义的短词（2个字母以下或无意义词列表中的）
+    meaningful_words = []
+    for word in words:
+        word_lower = word.lower()
+        # 保留3个字母以上的词，或者不在无意义列表中的2字母词
+        if len(word) > 2 or (len(word) == 2 and word_lower not in MEANINGLESS_WORDS):
+            meaningful_words.append(word)
+    
+    # 连接成字符串（无空格）
+    project_name = ''.join(meaningful_words)
+    
+    return project_name if project_name else "Project"
+
 def send_client_email(client_email: str, company_name: str, file_path: str = None, download_link: str = None, ai_generated_body: str = None, cc_email: str = None, signature: str = None, use_drive_for_large_files: bool = True, contact_name: str = None) -> str:
     """
     向客户发送邮件，可带附件或下载链接
     大文件自动使用 Google Drive 链接
     contact_name: 联系人名字，用于邮件称呼 (如 "Greg")，不传则使用 company_name
     """
+    # 提取项目名称（从文件名中去掉数字）
+    if file_path:
+        filename = os.path.basename(file_path)
+        project_name = extract_project_name(filename)
+    else:
+        project_name = company_name
+    
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = client_email
     if cc_email:
         msg['Cc'] = cc_email
-    msg['Subject'] = f"[Project Delivery] {company_name} - Latest Drawings & Models"
+    msg['Subject'] = f"[Project Delivery] {project_name} - Latest Drawings & Models"
     
     # 检查文件大小
     file_size = 0
@@ -139,7 +179,7 @@ def send_client_email(client_email: str, company_name: str, file_path: str = Non
         if use_drive_link and drive_link:
             full_body = f"""Hey {greeting_name},
 
-Please find the latest project files for your review.
+Please find the latest project files for {project_name}.
 
 File: {filename}
 Size: {file_size/1024/1024:.1f}MB
@@ -151,7 +191,7 @@ Kindly download and check the files. If you have any questions, please feel free
 
 {sig}"""
         else:
-            full_body = f"Hey {greeting_name},\n\nPlease find attached the latest project files for your review.\n\nFile: {filename}\n\nKindly download and check the files. If you have any questions, please feel free to contact us.\n\n{sig}"
+            full_body = f"Hey {greeting_name},\n\nPlease find attached the latest project files for {project_name}.\n\nFile: {filename}\n\nKindly download and check the files. If you have any questions, please feel free to contact us.\n\n{sig}"
     
     msg.attach(MIMEText(full_body, 'plain', 'utf-8'))
     
