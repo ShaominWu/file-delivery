@@ -59,17 +59,29 @@ case "$1" in
         fi
         ;;
     --cleanup)
-        echo "🧹 清理云端旧文件..."
+        echo "🧹 清理云端旧文件 (Google Drive + Dropbox)..."
         ./run.sh --cleanup
         echo -e "${GREEN}🫘 清理完毕！${NC}"
+        ;;
+    --cleanup-drive)
+        echo "🧹 清理 Google Drive..."
+        ./run.sh --cleanup-drive
+        echo -e "${GREEN}🫘 Google Drive 清理完毕！${NC}"
+        ;;
+    --cleanup-dropbox)
+        echo "🧹 清理 Dropbox..."
+        ./run.sh --cleanup-dropbox
+        echo -e "${GREEN}🫘 Dropbox 清理完毕！${NC}"
         ;;
     *)
         echo "小豆豆能帮你："
         echo ""
-        echo "  ./xiaodoudou.sh --status    查看各客户待发送文件"
-        echo "  ./xiaodoudou.sh --run       运行完整交付流程"
-        echo "  ./xiaodoudou.sh --client X  处理指定客户"
-        echo "  ./xiaodoudou.sh --cleanup   清理云端旧文件"
+        echo "  ./xiaodoudou.sh --status           查看各客户待发送文件"
+        echo "  ./xiaodoudou.sh --run              运行完整交付流程"
+        echo "  ./xiaodoudou.sh --client X         处理指定客户"
+        echo "  ./xiaodoudou.sh --cleanup          清理所有云端旧文件"
+        echo "  ./xiaodoudou.sh --cleanup-drive    只清理 Google Drive"
+        echo "  ./xiaodoudou.sh --cleanup-dropbox  只清理 Dropbox"
         echo ""
         echo -e "${PINK}🫘 有事叫我，没事我不吵你~${NC}"
         ;;

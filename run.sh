@@ -18,8 +18,17 @@ if [ "$1" == "--client" ] && [ -n "$2" ]; then
     echo "处理客户: $2"
     $PYTHON "$SKILL_DIR/tools/delivery_agent.py" --client "$2"
 elif [ "$1" == "--cleanup" ]; then
-    echo "清理云端文件..."
+    echo "🧹 清理 Google Drive..."
     $PYTHON "$SKILL_DIR/tools/cleanup_drive.py"
+    echo ""
+    echo "🧹 清理 Dropbox..."
+    $PYTHON "$SKILL_DIR/tools/cleanup_dropbox.py"
+elif [ "$1" == "--cleanup-drive" ]; then
+    echo "🧹 清理 Google Drive..."
+    $PYTHON "$SKILL_DIR/tools/cleanup_drive.py"
+elif [ "$1" == "--cleanup-dropbox" ]; then
+    echo "🧹 清理 Dropbox..."
+    $PYTHON "$SKILL_DIR/tools/cleanup_dropbox.py"
 elif [ "$1" == "--status" ]; then
     echo "检查待发送文件..."
     $SKILL_DIR/tools/check_status.sh
