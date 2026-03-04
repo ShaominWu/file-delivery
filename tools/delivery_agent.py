@@ -6,6 +6,14 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
+# 导入 Dropbox 上传模块
+try:
+    from dropbox_uploader import DropboxUploader
+    DROPBOX_AVAILABLE = True
+except ImportError:
+    DROPBOX_AVAILABLE = False
+    print("⚠️ 警告: Dropbox 模块未加载，将只使用 Google Drive")
+
 # Google Drive API 权限
 SCOPES = [
     'https://www.googleapis.com/auth/drive',
@@ -125,8 +133,23 @@ def delete_file(service, file_id):
         print(f"删除文件失败: {e}")
         return False
 
-def process_client_files(client_name, local_folder, service=None):
-    """处理客户文件：上传、生成链接、返回链接信息"""
+def upload_to_dropbox(file_path, client_name):
+    """上传文件到 Dropbox 并返回分享链接"""
+    if not DROPBOX_AVAILABLE:
+        return None, "Dropbox 模块不可用"
+    
+    uploader = DropboxUploader()
+    if not uploader.is_authenticated():
+        return None, "Dropbox 未认证，请先配置 DROPBOX_ACCESS_TOKEN"
+    
+    result = uploader.upload_and_share(file_path, client_name)
+    if result['error']:
+        return None, result['error']
+    
+    return result['share_link'], None
+
+def process_client_files(client_name, local_folder, service=None, use_dropbox=True):
+    """处理客户文件：上传到 Google Drive 和 Dropbox，生成链接，返回链接信息"""
     if not service:
         creds = get_credentials()
         if not creds:
@@ -154,23 +177,30 @@ def process_client_files(client_name, local_folder, service=None):
             file_path = os.path.join(root, filename)
             
             try:
-                # 上传文件
-                print(f"📤 正在上传: {filename} ...")
+                result = {'filename': filename}
+                
+                # ========== 上传到 Google Drive ==========
+                print(f"  📤 上传到 Google Drive: {filename} ...")
                 file = upload_file(service, file_path, client_folder_id, filename)
                 file_id = file['id']
+                gdrive_link = create_share_link(service, file_id, anyone_can_view=True)
+                result['gdrive_link'] = gdrive_link
+                result['file_id'] = file_id
+                print(f"     ✅ Google Drive: {gdrive_link}")
                 
-                # 创建分享链接
-                share_link = create_share_link(service, file_id, anyone_can_view=True)
+                # ========== 上传到 Dropbox (如果启用) ==========
+                if use_dropbox:
+                    print(f"  📤 上传到 Dropbox: {filename} ...")
+                    dropbox_link, dropbox_error = upload_to_dropbox(file_path, client_name)
+                    if dropbox_link:
+                        result['dropbox_link'] = dropbox_link
+                        print(f"     ✅ Dropbox: {dropbox_link}")
+                    else:
+                        result['dropbox_error'] = dropbox_error
+                        print(f"     ⚠️ Dropbox 失败: {dropbox_error}")
                 
-                results.append({
-                    'filename': filename,
-                    'file_id': file_id,
-                    'share_link': share_link,
-                    'local_path': file_path
-                })
-                
-                print(f"✅ 上传成功: {filename}")
-                print(f"🔗 分享链接: {share_link}")
+                result['local_path'] = file_path
+                results.append(result)
                 
             except Exception as e:
                 print(f"❌ 上传失败 {filename}: {e}")
@@ -211,7 +241,7 @@ def extract_project_name(filename):
     return project_name if project_name else "Project"
 
 def send_client_email_with_link(client_email, company_name, share_links, ai_body=None, contact_name=None, cc_email=None):
-    """发送包含 Google Drive 链接的邮件"""
+    """发送包含 Google Drive 和 Dropbox 链接的邮件"""
     import smtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
@@ -245,10 +275,22 @@ def send_client_email_with_link(client_email, company_name, share_links, ai_body
 
 Your project files for {project_name} are ready for download.
 
-Please click the link(s) below to download your files:
+Please choose your preferred download method:
 """
         for item in share_links:
-            body += f"\n📄 {item['filename']}\n🔗 {item['share_link']}\n"
+            body += f"\n📄 {item['filename']}\n"
+            
+            # Google Drive 链接
+            if 'gdrive_link' in item:
+                body += f"🔗 Google Drive: {item['gdrive_link']}\n"
+            
+            # Dropbox 链接
+            if 'dropbox_link' in item:
+                body += f"🔗 Dropbox: {item['dropbox_link']}\n"
+            
+            # 如果 Dropbox 失败了，标注一下
+            if 'dropbox_error' in item and 'dropbox_link' not in item:
+                body += f"   (Dropbox temporarily unavailable)\n"
         
         body += """
 Note: These links are private and only accessible to you. Please download within 7 days.
@@ -311,7 +353,20 @@ if __name__ == "__main__":
         exit(1)
     
     service = build('drive', 'v3', credentials=creds)
-    print("✅ Google Drive 连接成功\n")
+    print("✅ Google Drive 连接成功")
+    
+    # 检查 Dropbox 是否可用
+    if DROPBOX_AVAILABLE:
+        dropbox_uploader = DropboxUploader()
+        if dropbox_uploader.is_authenticated():
+            print("✅ Dropbox 连接成功")
+        else:
+            print("⚠️ Dropbox 未认证，将只使用 Google Drive")
+            print("   请配置 DROPBOX_ACCESS_TOKEN 环境变量或 config/dropbox_token.txt")
+    else:
+        print("⚠️ Dropbox 模块未加载，将只使用 Google Drive")
+    
+    print()
     
     # 遍历所有客户
     for client_key, client_info in clients.items():
@@ -336,7 +391,7 @@ if __name__ == "__main__":
         
         print(f"📁 {client_key}: 发现 {len(files_to_process)} 个文件")
         
-        # 上传到 Google Drive
+        # 上传到 Google Drive 和 Dropbox
         share_links = []
         for filename, file_path in files_to_process:
             print(f"  📤 上传: {filename}...")
@@ -344,17 +399,30 @@ if __name__ == "__main__":
             main_folder_id = get_or_create_folder(service, "客户文件交付")
             client_folder_id = get_or_create_folder(service, client_key, main_folder_id)
             
+            # 上传到 Google Drive
             file = upload_file(service, file_path, client_folder_id, filename)
-            share_link = create_share_link(service, file['id'], anyone_can_view=True)
+            gdrive_link = create_share_link(service, file['id'], anyone_can_view=True)
             
-            share_links.append({
+            link_info = {
                 'filename': filename,
                 'file_id': file['id'],
-                'share_link': share_link
-            })
-            print(f"     ✅ 链接: {share_link}")
+                'gdrive_link': gdrive_link
+            }
+            print(f"     ✅ Google Drive: {gdrive_link}")
+            
+            # 上传到 Dropbox
+            if DROPBOX_AVAILABLE:
+                dropbox_link, dropbox_error = upload_to_dropbox(file_path, client_key)
+                if dropbox_link:
+                    link_info['dropbox_link'] = dropbox_link
+                    print(f"     ✅ Dropbox: {dropbox_link}")
+                else:
+                    link_info['dropbox_error'] = dropbox_error
+                    print(f"     ⚠️ Dropbox 失败: {dropbox_error}")
+            
+            share_links.append(link_info)
         
-        # 发送邮件
+        # 发送邮件（包含两个链接）
         cc_email = client_info.get('cc')
         print(f"  📧 发送邮件到 {client_info['email']}...")
         if cc_email:

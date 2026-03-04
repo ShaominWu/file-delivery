@@ -13,6 +13,13 @@ from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
+# Dropbox API
+try:
+    from dropbox_uploader import DropboxUploader
+    DROPBOX_AVAILABLE = True
+except ImportError:
+    DROPBOX_AVAILABLE = False
+
 # ================= 配置区 =================
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 465
@@ -96,6 +103,27 @@ def upload_to_google_drive(file_path: str, filename: str) -> str:
         print(f"Google Drive 上传失败: {e}")
         return None
 
+def upload_to_dropbox(file_path: str, client_folder: str) -> str:
+    """上传文件到 Dropbox 并返回分享链接"""
+    if not DROPBOX_AVAILABLE:
+        return None
+    
+    try:
+        uploader = DropboxUploader()
+        if not uploader.is_authenticated():
+            print("⚠️ Dropbox 未认证")
+            return None
+        
+        result = uploader.upload_and_share(file_path, client_folder)
+        if result['error']:
+            print(f"Dropbox 上传失败: {result['error']}")
+            return None
+        
+        return result['share_link']
+    except Exception as e:
+        print(f"Dropbox 错误: {e}")
+        return None
+
 def extract_project_name(filename):
     """从文件名中提取项目名称（去掉数字和无意义词，保留有意义的词）"""
     import re
@@ -129,11 +157,14 @@ def extract_project_name(filename):
     
     return project_name if project_name else "Project"
 
-def send_client_email(client_email: str, company_name: str, file_path: str = None, download_link: str = None, ai_generated_body: str = None, cc_email: str = None, signature: str = None, use_drive_for_large_files: bool = True, contact_name: str = None) -> str:
+def send_client_email(client_email: str, company_name: str, file_path: str = None, 
+                      download_links: dict = None, ai_generated_body: str = None, 
+                      cc_email: str = None, signature: str = None, 
+                      contact_name: str = None) -> str:
     """
-    向客户发送邮件，可带附件或下载链接
-    大文件自动使用 Google Drive 链接
-    contact_name: 联系人名字，用于邮件称呼 (如 "Greg")，不传则使用 company_name
+    向客户发送邮件，包含 Google Drive 和 Dropbox 下载链接
+    download_links: {'gdrive': 'url', 'dropbox': 'url'} or None
+    contact_name: 联系人名字，用于邮件称呼
     """
     # 提取项目名称（从文件名中去掉数字）
     if file_path:
@@ -149,61 +180,39 @@ def send_client_email(client_email: str, company_name: str, file_path: str = Non
         msg['Cc'] = cc_email
     msg['Subject'] = f"[Project Delivery] {project_name} - Latest Drawings & Models"
     
-    # 检查文件大小
-    file_size = 0
-    use_drive_link = False
-    drive_link = None
+    # 称呼：优先使用 contact_name，否则用 company_name
+    greeting_name = contact_name if contact_name else company_name
     
-    if file_path and os.path.exists(file_path):
-        file_size = os.path.getsize(file_path)
-        filename = os.path.basename(file_path)
-        
-        # 如果文件超过限制，上传到 Google Drive
-        if use_drive_for_large_files and file_size > GMAIL_SIZE_LIMIT_BYTES:
-            print(f"  文件 {filename} ({file_size/1024/1024:.1f}MB) 超过 {GMAIL_SIZE_LIMIT_MB}MB，使用 Google Drive 链接...")
-            drive_link = upload_to_google_drive(file_path, filename)
-            if drive_link:
-                use_drive_link = True
-                print(f"  ✓ 已上传至 Google Drive: {drive_link}")
-    
-    # 邮件正文 - 英文版（适配加拿大客户）
     if ai_generated_body:
         full_body = ai_generated_body
     else:
         # 使用自定义签名或默认签名
         sig = signature if signature else "Ferrum Drafting Team"
         filename = os.path.basename(file_path) if file_path else 'See attachment'
-        # 称呼：优先使用 contact_name，否则用 company_name
-        greeting_name = contact_name if contact_name else company_name
         
-        if use_drive_link and drive_link:
-            full_body = f"""Hey {greeting_name},
+        full_body = f"""Hey {greeting_name},
 
 Please find the latest project files for {project_name}.
 
 File: {filename}
-Size: {file_size/1024/1024:.1f}MB
+"""
+        
+        # 添加下载链接
+        if download_links:
+            full_body += "\nDownload links:\n"
+            if 'gdrive' in download_links and download_links['gdrive']:
+                full_body += f"🔗 Google Drive: {download_links['gdrive']}\n"
+            if 'dropbox' in download_links and download_links['dropbox']:
+                full_body += f"🔗 Dropbox: {download_links['dropbox']}\n"
+        
+        full_body += f"""
+Note: These links are private and only accessible to you. Please download within 7 days.
 
-Due to file size, please download from this link:
-{drive_link}
-
-Kindly download and check the files. If you have any questions, please feel free to contact us.
+After you download, the files will be automatically removed from our server.
 
 {sig}"""
-        else:
-            full_body = f"Hey {greeting_name},\n\nPlease find attached the latest project files for {project_name}.\n\nFile: {filename}\n\nKindly download and check the files. If you have any questions, please feel free to contact us.\n\n{sig}"
     
     msg.attach(MIMEText(full_body, 'plain', 'utf-8'))
-    
-    # 如果有本地文件且不太大，作为附件添加
-    if file_path and os.path.exists(file_path) and not use_drive_link:
-        filename = os.path.basename(file_path)
-        with open(file_path, 'rb') as f:
-            attachment = MIMEBase('application', 'octet-stream')
-            attachment.set_payload(f.read())
-        encoders.encode_base64(attachment)
-        attachment.add_header('Content-Disposition', f'attachment; filename={filename}')
-        msg.attach(attachment)
     
     try:
         server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
@@ -215,10 +224,14 @@ Kindly download and check the files. If you have any questions, please feel free
         server.sendmail(SENDER_EMAIL, recipients, msg.as_string())
         server.quit()
         
-        if use_drive_link:
-            return f"✓ 成功：已发送 Google Drive 链接至 {client_email}" + (f" (CC: {cc_email})" if cc_email else "")
-        else:
-            return f"✓ 成功：已将文件发送至 {client_email}" + (f" (CC: {cc_email})" if cc_email else "")
+        links_summary = []
+        if download_links:
+            if 'gdrive' in download_links and download_links['gdrive']:
+                links_summary.append("Google Drive")
+            if 'dropbox' in download_links and download_links['dropbox']:
+                links_summary.append("Dropbox")
+        
+        return f"✓ 成功：已发送至 {client_email}" + (f" (CC: {cc_email})" if cc_email else "") + f" [{', '.join(links_summary)}]"
     except Exception as e:
         return f"✗ 错误：邮件发送失败 - {str(e)}"
 
@@ -267,6 +280,7 @@ def auto_send_by_company_folder(folder_path: str, move_sent: bool = True) -> str
     """
     根据文件夹名识别公司，递归搜索该文件夹下所有文件并发送
     文件夹名对应公司: MM/, MIG/, Ritchie/, simcon/, olsonfab/, carleton/, Shao/
+    上传到 Google Drive 和 Dropbox，发送两个链接
     """
     if not os.path.exists(folder_path):
         return f"✗ 错误：路径不存在 {folder_path}"
@@ -309,20 +323,43 @@ def auto_send_by_company_folder(folder_path: str, move_sent: bool = True) -> str
         # 从JSON配置获取CC邮箱和联系人信息
         client_info = clients.get(company_key, {})
         cc_email = client_info.get('cc')
-        contact_name = client_info.get('contact')  # 联系人名字
+        contact_name = client_info.get('contact')
         
         sent_folder = os.path.join(company_folder, "已发送")
         
         for filename, file_path in files_to_send:
-            # 发送邮件（支持自定义签名、联系人名字、大文件自动用Google Drive）
+            # 上传到 Google Drive
+            print(f"  📤 上传到 Google Drive: {filename}...")
+            gdrive_link = upload_to_google_drive(file_path, filename)
+            if gdrive_link:
+                print(f"     ✅ Google Drive: {gdrive_link}")
+            else:
+                print(f"     ❌ Google Drive 失败")
+            
+            # 上传到 Dropbox
+            print(f"  📤 上传到 Dropbox: {filename}...")
+            dropbox_link = upload_to_dropbox(file_path, company_key)
+            if dropbox_link:
+                print(f"     ✅ Dropbox: {dropbox_link}")
+            else:
+                print(f"     ⚠️ Dropbox 失败或未配置")
+            
+            # 准备下载链接
+            download_links = {}
+            if gdrive_link:
+                download_links['gdrive'] = gdrive_link
+            if dropbox_link:
+                download_links['dropbox'] = dropbox_link
+            
+            # 发送邮件（支持自定义签名、联系人名字）
             custom_signature = client_info.get('signature')
             result = send_client_email(
                 client_email=client_email,
                 company_name=company_key,
                 file_path=file_path,
+                download_links=download_links if download_links else None,
                 cc_email=cc_email,
                 signature=custom_signature,
-                use_drive_for_large_files=True,
                 contact_name=contact_name
             )
             results.append(f"✓ {company_key}/{filename} → {client_email}: {result}")

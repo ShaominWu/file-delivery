@@ -1,0 +1,21 @@
+# Ferrum File Delivery System - Python Dependencies
+
+# Google Drive API
+google-api-python-client>=2.0.0
+google-auth-httplib2>=0.1.0
+google-auth-oauthlib>=0.5.0
+
+# Dropbox API
+dropbox>=11.0.0
+
+# Email
+smtplib
+email
+
+# Other
+pickle
+json
+os
+re
+time
+datetime
