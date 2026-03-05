@@ -12,11 +12,17 @@ class DropboxUploader:
         # 从环境变量或配置文件获取 token
         self.access_token = access_token or os.environ.get('DROPBOX_ACCESS_TOKEN')
         if not self.access_token:
-            # 尝试从配置文件读取
-            config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'dropbox_token.txt')
-            if os.path.exists(config_path):
-                with open(config_path, 'r') as f:
-                    self.access_token = f.read().strip()
+            # 尝试从配置文件读取（支持相对路径和绝对路径）
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            config_paths = [
+                os.path.join(script_dir, '..', 'config', 'dropbox_token.txt'),
+                '/Users/bear/.openclaw/workspace/file-delivery/config/dropbox_token.txt'
+            ]
+            for config_path in config_paths:
+                if os.path.exists(config_path):
+                    with open(config_path, 'r') as f:
+                        self.access_token = f.read().strip()
+                        break
         
         self.dbx = None
         if self.access_token:
