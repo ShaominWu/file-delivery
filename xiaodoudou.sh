@@ -73,15 +73,32 @@ case "$1" in
         ./run.sh --cleanup-dropbox
         echo -e "${GREEN}🫘 Dropbox 清理完毕！${NC}"
         ;;
+    --wetransfer)
+        if [ -n "$2" ] && [ -n "$3" ]; then
+            echo "📤 使用 WeTransfer 发送文件..."
+            source "$VENV/bin/activate"
+            python3 "$WORKSPACE/tools/wetransfer_uploader.py" "$2" "$3" "${4:-}"
+            echo -e "${GREEN}🫘 WeTransfer 发送完毕！${NC}"
+        else
+            echo "❌ 请提供文件路径和收件人邮箱: ./xiaodoudou.sh --wetransfer <文件> <邮箱> [消息]"
+        fi
+        ;;
+    --backup-wetransfer)
+        echo "🔄 运行交付流程（WeTransfer 作为备份）..."
+        ./run.sh --backup-wetransfer
+        echo -e "${GREEN}🫘 备份流程完成！${NC}"
+        ;;
     *)
         echo "小豆豆能帮你："
         echo ""
-        echo "  ./xiaodoudou.sh --status           查看各客户待发送文件"
-        echo "  ./xiaodoudou.sh --run              运行完整交付流程"
-        echo "  ./xiaodoudou.sh --client X         处理指定客户"
-        echo "  ./xiaodoudou.sh --cleanup          清理所有云端旧文件"
-        echo "  ./xiaodoudou.sh --cleanup-drive    只清理 Google Drive"
-        echo "  ./xiaodoudou.sh --cleanup-dropbox  只清理 Dropbox"
+        echo "  ./xiaodoudou.sh --status            查看各客户待发送文件"
+        echo "  ./xiaodoudou.sh --run               运行完整交付流程 (Google Drive)"
+        echo "  ./xiaodoudou.sh --client X          处理指定客户"
+        echo "  ./xiaodoudou.sh --wetransfer <f> <e> [m]  用 WeTransfer 发送文件"
+        echo "  ./xiaodoudou.sh --backup-wetransfer Google Drive失败时用WeTransfer备份"
+        echo "  ./xiaodoudou.sh --cleanup           清理所有云端旧文件"
+        echo "  ./xiaodoudou.sh --cleanup-drive     只清理 Google Drive"
+        echo "  ./xiaodoudou.sh --cleanup-dropbox   只清理 Dropbox"
         echo ""
         echo -e "${PINK}🫘 有事叫我，没事我不吵你~${NC}"
         ;;

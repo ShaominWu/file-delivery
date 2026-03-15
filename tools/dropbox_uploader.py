@@ -8,12 +8,37 @@ from dropbox.sharing import SharedLinkSettings, RequestedVisibility
 
 class DropboxUploader:
     def __init__(self, access_token=None):
-        """初始化 Dropbox 上传器"""
-        # 从环境变量或配置文件获取 token
+        """初始化 Dropbox 上传器 - 支持 Refresh Token"""
+        self.dbx = None
+        
+        # 首先尝试使用 Refresh Token（长期有效）
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        refresh_token_path = os.path.join(script_dir, '..', 'config', 'dropbox_refresh_token.txt')
+        credentials_path = os.path.join(script_dir, '..', 'config', 'dropbox_app_credentials.txt')
+        
+        if os.path.exists(refresh_token_path) and os.path.exists(credentials_path):
+            try:
+                with open(refresh_token_path, 'r') as f:
+                    refresh_token = f.read().strip()
+                with open(credentials_path, 'r') as f:
+                    lines = f.read().strip().split('\n')
+                    app_key = lines[0]
+                    app_secret = lines[1]
+                
+                # 使用 Refresh Token 创建 Dropbox 客户端
+                self.dbx = dropbox.Dropbox(
+                    app_key=app_key,
+                    app_secret=app_secret,
+                    oauth2_refresh_token=refresh_token
+                )
+                return
+            except Exception as e:
+                print(f"⚠️ Refresh Token 方式失败: {e}")
+        
+        # 回退到旧的 Access Token 方式
         self.access_token = access_token or os.environ.get('DROPBOX_ACCESS_TOKEN')
         if not self.access_token:
-            # 尝试从配置文件读取（支持相对路径和绝对路径）
-            script_dir = os.path.dirname(os.path.abspath(__file__))
+            # 尝试从配置文件读取
             config_paths = [
                 os.path.join(script_dir, '..', 'config', 'dropbox_token.txt'),
                 '/Users/bear/.openclaw/workspace/file-delivery/config/dropbox_token.txt'
@@ -24,7 +49,6 @@ class DropboxUploader:
                         self.access_token = f.read().strip()
                         break
         
-        self.dbx = None
         if self.access_token:
             self.dbx = dropbox.Dropbox(self.access_token)
     
