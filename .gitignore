@@ -1,0 +1,31 @@
+# Local secrets and OAuth tokens
+config/clients.json
+tools/.env
+tools/client_secrets.json
+tools/token.pickle
+config/dropbox_app_credentials.txt
+config/dropbox_refresh_token.txt
+config/dropbox_token.txt
+config/onedrive_credentials.json
+*.pickle
+
+# Runtime output
+logs/
+*.log
+*.err
+*.out
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+.Python
+
+# macOS / Windows noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local sync artifacts
+#SyncVersion/
+.stfolder*

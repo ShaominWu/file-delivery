@@ -1,0 +1,21 @@
+{
+  "clients": {
+    "CLIENT_KEY": {
+      "email": "client@example.com",
+      "cc": "optional-copy@example.com",
+      "contact": "Client Contact",
+      "name": "Client Company",
+      "folder": "ClientFolder"
+    }
+  },
+  "settings": {
+    "windows_sync_folder": "/path/to/ugreen-sync",
+    "local_sync_folder": "/path/to/ugreen-sync",
+    "google_drive_folder": "客户文件交付",
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 465,
+    "sender_email": "your_email@example.com",
+    "link_expiry_days": 7,
+    "auto_cleanup_after_download": true
+  }
+}
