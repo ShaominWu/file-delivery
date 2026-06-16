@@ -146,14 +146,13 @@ class DropboxUploader:
 
             # 创建分享链接
             try:
-                link = self.dbx.sharing_create_shared_link_with_settings(
-                    dropbox_path,
-                    settings=settings
-                )
+                link = self.dbx.sharing_create_shared_link_with_settings(dropbox_path)
             except dropbox.exceptions.ApiError as e:
                 # 如果链接已存在，获取现有链接
                 if _is_shared_link_exists_error(e):
-                    link = self.get_existing_share_link(dropbox_path)
+                    link = self.get_share_link_from_exists_error(e)
+                    if not link:
+                        link = self.get_existing_share_link(dropbox_path)
                     if not link:
                         return None, "分享链接已存在，但无法读取现有链接"
                 else:
@@ -165,6 +164,22 @@ class DropboxUploader:
 
         except Exception as e:
             return None, str(e)
+
+
+    def get_share_link_from_exists_error(self, error):
+        """Dropbox returns existing link metadata in shared_link_already_exists errors."""
+        sdk_error = getattr(error, "error", None)
+        if not sdk_error or not hasattr(sdk_error, "get_shared_link_already_exists"):
+            return None
+
+        try:
+            existing = sdk_error.get_shared_link_already_exists()
+            if hasattr(existing, "is_metadata") and existing.is_metadata():
+                return existing.get_metadata()
+        except Exception:
+            return None
+
+        return None
 
     def get_existing_share_link(self, dropbox_path):
         """读取 Dropbox 已有分享链接。"""
