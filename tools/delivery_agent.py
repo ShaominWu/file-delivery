@@ -15,6 +15,7 @@ import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+from html import escape
 from pathlib import Path
 
 from googleapiclient.discovery import build
@@ -286,6 +287,106 @@ def send_telegram(message):
         logging.error(f"Telegram发送失败: {e}")
         return False
 
+
+def is_sync_temp_file(filename):
+    """判断是否为绿联云/Syncthing 同步临时文件。"""
+    return filename.startswith('.syncthing.') or filename.endswith('.tmp')
+
+
+def load_sync_alert_state(log_dir):
+    state_path = os.path.join(log_dir, 'sync-alert-state.json')
+    try:
+        with open(state_path, 'r', encoding='utf-8') as f:
+            return state_path, json.load(f)
+    except Exception:
+        return state_path, {'notified': []}
+
+
+def save_sync_alert_state(state_path, state):
+    try:
+        state['notified'] = state.get('notified', [])[-500:]
+        with open(state_path, 'w', encoding='utf-8') as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logging.warning(f"保存绿联云提醒状态失败: {e}")
+
+
+def collect_sync_alerts(local_base, recent_hours=24):
+    """收集程序看到了但不会自动发送的近期文件。"""
+    alerts = []
+    cutoff = datetime.now().timestamp() - recent_hours * 3600
+
+    for root, dirs, files in os.walk(local_base):
+        dirs[:] = [d for d in dirs if d != '#SyncVersion']
+        rel_root = os.path.relpath(root, local_base)
+        parts = [] if rel_root == '.' else rel_root.split(os.sep)
+        in_sent_folder = '已发送' in parts
+        client_name = parts[0] if parts else '绿联云同步'
+
+        for filename in files:
+            if filename in {'desktop.ini', 'Thumbs.db', '.DS_Store'}:
+                continue
+
+            file_path = os.path.join(root, filename)
+            try:
+                st = os.stat(file_path)
+            except OSError:
+                continue
+
+            if st.st_mtime < cutoff:
+                continue
+
+            is_temp = is_sync_temp_file(filename)
+            if not is_temp and not in_sent_folder:
+                continue
+
+            if is_temp:
+                reason = '同步还没完成，是临时文件'
+            else:
+                reason = '文件在「已发送」文件夹，程序会跳过'
+
+            rel_path = os.path.relpath(file_path, local_base)
+            alerts.append({
+                'key': f"{rel_path}|{int(st.st_mtime)}|{st.st_size}",
+                'client': client_name,
+                'filename': filename,
+                'reason': reason,
+                'mtime': datetime.fromtimestamp(st.st_mtime).strftime('%Y-%m-%d %H:%M'),
+                'size': st.st_size,
+            })
+
+    return alerts
+
+
+def send_sync_alert_if_needed(log_dir, local_base):
+    alerts = collect_sync_alerts(local_base)
+    if not alerts:
+        return 0
+
+    state_path, state = load_sync_alert_state(log_dir)
+    notified = set(state.get('notified', []))
+    fresh_alerts = [item for item in alerts if item['key'] not in notified]
+    if not fresh_alerts:
+        return 0
+
+    preview = fresh_alerts[:8]
+    msg = "⚠️ <b>绿联云扫描提醒</b>\n"
+    msg += f"🕐 {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+    msg += "Mac mini 看到了文件，但没有自动发送给客户：\n"
+    for item in preview:
+        msg += f"• <b>{escape(item['client'])}</b>: {escape(item['filename'])}\n"
+        msg += f"  {escape(item['reason'])}（{escape(item['mtime'])}）\n"
+    if len(fresh_alerts) > len(preview):
+        msg += f"\n还有 {len(fresh_alerts) - len(preview)} 个类似文件。\n"
+    msg += "\n请等同步完成后，把正式文件放在客户文件夹里，不要放在「已发送」里面。"
+
+    if send_telegram(msg):
+        notified.update(item['key'] for item in fresh_alerts)
+        state['notified'] = list(notified)
+        save_sync_alert_state(state_path, state)
+        return len(fresh_alerts)
+    return 0
+
 # ===================== 主程序 =====================
 def main():
     # 确定目录
@@ -468,6 +569,9 @@ def main():
         logging.info("=" * 60)
     else:
         logging.info("ℹ️ 没有发现新文件，无需处理")
+        alert_count = send_sync_alert_if_needed(log_dir, local_base)
+        if alert_count:
+            logging.info(f"📱 绿联云扫描提醒已发送（{alert_count} 个文件）")
         logging.info("=" * 60)
 
 if __name__ == "__main__":
