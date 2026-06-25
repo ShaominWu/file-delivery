@@ -124,6 +124,8 @@ cat > "$PLIST_DIR/com.ferrum.cleanup.0100.plist" << PLIST
         <string>$BASE_DIR/tools/cleanup_drive.py</string>
         <string>--days</string>
         <string>7</string>
+        <string>--local-days</string>
+        <string>30</string>
     </array>
     <key>WorkingDirectory</key>
     <string>$BASE_DIR</string>
@@ -155,4 +157,4 @@ echo "✅ 4个定时任务已安装："
 echo "   每天 08:00 - 发送文件"
 echo "   每天 10:00 - 发送文件"
 echo "   每天 11:30 - 发送文件"
-echo "   每天 01:00 - 清理 Google Drive / OneDrive 云端旧文件"
+echo "   每天 01:00 - 清理 Google Drive / Dropbox / OneDrive 云端旧文件 + 本地已发送"

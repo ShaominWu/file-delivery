@@ -24,7 +24,7 @@ jobs = {
     "com.ferrum.delivery.0800.plist": [python_bin, "$BASE_DIR/tools/delivery_agent.py"],
     "com.ferrum.delivery.1000.plist": [python_bin, "$BASE_DIR/tools/delivery_agent.py"],
     "com.ferrum.delivery.1130.plist": [python_bin, "$BASE_DIR/tools/delivery_agent.py"],
-    "com.ferrum.cleanup.0100.plist": [python_bin, "$BASE_DIR/tools/cleanup_drive.py", "--days", "7"],
+    "com.ferrum.cleanup.0100.plist": [python_bin, "$BASE_DIR/tools/cleanup_drive.py", "--days", "7", "--local-days", "30"],
 }
 
 for name, args in jobs.items():
