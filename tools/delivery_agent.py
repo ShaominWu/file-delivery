@@ -312,19 +312,21 @@ def save_sync_alert_state(state_path, state):
 
 
 def collect_sync_alerts(local_base, recent_hours=24):
-    """收集程序看到了但不会自动发送的近期文件。"""
+    """收集同步未完成、还不能自动发送的近期文件。"""
     alerts = []
     cutoff = datetime.now().timestamp() - recent_hours * 3600
 
     for root, dirs, files in os.walk(local_base):
-        dirs[:] = [d for d in dirs if d != '#SyncVersion']
+        dirs[:] = [d for d in dirs if d not in {'#SyncVersion', '已发送'}]
         rel_root = os.path.relpath(root, local_base)
         parts = [] if rel_root == '.' else rel_root.split(os.sep)
-        in_sent_folder = '已发送' in parts
         client_name = parts[0] if parts else '绿联云同步'
 
         for filename in files:
             if filename in {'desktop.ini', 'Thumbs.db', '.DS_Store'}:
+                continue
+
+            if not is_sync_temp_file(filename):
                 continue
 
             file_path = os.path.join(root, filename)
@@ -336,21 +338,12 @@ def collect_sync_alerts(local_base, recent_hours=24):
             if st.st_mtime < cutoff:
                 continue
 
-            is_temp = is_sync_temp_file(filename)
-            if not is_temp and not in_sent_folder:
-                continue
-
-            if is_temp:
-                reason = '同步还没完成，是临时文件'
-            else:
-                reason = '文件在「已发送」文件夹，程序会跳过'
-
             rel_path = os.path.relpath(file_path, local_base)
             alerts.append({
                 'key': f"{rel_path}|{int(st.st_mtime)}|{st.st_size}",
                 'client': client_name,
                 'filename': filename,
-                'reason': reason,
+                'reason': '同步还没完成，是临时文件',
                 'mtime': datetime.fromtimestamp(st.st_mtime).strftime('%Y-%m-%d %H:%M'),
                 'size': st.st_size,
             })
@@ -372,13 +365,13 @@ def send_sync_alert_if_needed(log_dir, local_base):
     preview = fresh_alerts[:8]
     msg = "⚠️ <b>绿联云扫描提醒</b>\n"
     msg += f"🕐 {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
-    msg += "Mac mini 看到了文件，但没有自动发送给客户：\n"
+    msg += "Mac mini 看到了还在同步中的临时文件，所以暂时没有自动发送给客户：\n"
     for item in preview:
         msg += f"• <b>{escape(item['client'])}</b>: {escape(item['filename'])}\n"
         msg += f"  {escape(item['reason'])}（{escape(item['mtime'])}）\n"
     if len(fresh_alerts) > len(preview):
         msg += f"\n还有 {len(fresh_alerts) - len(preview)} 个类似文件。\n"
-    msg += "\n请等同步完成后，把正式文件放在客户文件夹里，不要放在「已发送」里面。"
+    msg += "\n请等同步完成，正式文件出现后程序会自动发送。"
 
     if send_telegram(msg):
         notified.update(item['key'] for item in fresh_alerts)
