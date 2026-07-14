@@ -110,6 +110,38 @@ cat > "$PLIST_DIR/com.ferrum.delivery.1130.plist" << PLIST
 </plist>
 PLIST
 
+# 任务4: 每天17:55发送Telegram文件传递汇总
+cat > "$PLIST_DIR/com.ferrum.delivery.daily-report.plist" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ferrum.delivery.daily-report</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$PYTHON_BIN</string>
+        <string>$BASE_DIR/tools/daily_delivery_report.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>$BASE_DIR</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>17</integer>
+        <key>Minute</key>
+        <integer>55</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>$BASE_DIR/logs/daily-delivery-report.log</string>
+    <key>StandardErrorPath</key>
+    <string>$BASE_DIR/logs/daily-delivery-report-error.log</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
+PLIST
+
 # 任务3: 每天01:00 清理云端
 cat > "$PLIST_DIR/com.ferrum.cleanup.0100.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -150,11 +182,13 @@ PLIST
 launchctl load "$PLIST_DIR/com.ferrum.delivery.0800.plist"
 launchctl load "$PLIST_DIR/com.ferrum.delivery.1000.plist"
 launchctl load "$PLIST_DIR/com.ferrum.delivery.1130.plist"
+launchctl load "$PLIST_DIR/com.ferrum.delivery.daily-report.plist"
 launchctl load "$PLIST_DIR/com.ferrum.cleanup.0100.plist"
 
 echo ""
-echo "✅ 4个定时任务已安装："
+echo "✅ 5个定时任务已安装："
 echo "   每天 08:00 - 发送文件"
 echo "   每天 10:00 - 发送文件"
 echo "   每天 11:30 - 发送文件"
+echo "   每天 17:55 - Telegram 文件传递汇总"
 echo "   每天 01:00 - 清理 Google Drive / Dropbox / OneDrive 云端旧文件 + 本地已发送"
